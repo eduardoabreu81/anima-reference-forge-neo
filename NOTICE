@@ -1,0 +1,23 @@
+Anima Reference for Forge Neo
+Copyright 2026 eduardoabreu81
+
+This extension is licensed under the GNU Affero General Public License v3.0 (see LICENSE).
+
+It contains code ported from projects licensed under the Apache License, Version 2.0 (see LICENSE-APACHE); their
+notices follow.
+
+lib_anima_ref/adapter.py, forward.py, guidance.py and letterbox.py are ported from ComfyUI-Anima-Ref-Adapter
+(https://github.com/ElectronGirl/ComfyUI-Anima-Ref-Adapter, __init__.py), Copyright ElectronGirl, Apache License
+2.0. Changes: the ComfyUI node, patcher and guider APIs are replaced by Forge Neo's script hooks, unet patcher
+options and CFG functions; the reference is encoded at each sampling pass's size instead of full and half size.
+
+lib_anima_ref/kv.py and the FP32 LoRA delta in lib_anima_ref/adapter.py are ported from Anima Role Ref KV
+(https://huggingface.co/AnticPan/Anima-Role-Ref-KV, anima_role_ref_kv/reference.py, lora.py and pipeline.py),
+Copyright AnticPan, Apache License 2.0; parts of reference.py are adapted from Hugging Face Diffusers
+transformer_cosmos.py, Copyright the Hugging Face team, Apache License 2.0. Changes: the Diffusers transformer is
+replaced by Forge Neo's Anima model (the cache is read and added between its attention's compute_qkv and
+compute_attention), and the method runs inside Forge Neo's own sampler and CFG.
+
+The weights are not part of this extension. Both are derivatives of the CircleStone Model and are released by their
+authors under the CircleStone Non-Commercial License (https://huggingface.co/ElectronGirl/anima-ref-adapter,
+https://huggingface.co/AnticPan/Anima-Role-Ref-KV).
