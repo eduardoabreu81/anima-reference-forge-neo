@@ -4,9 +4,12 @@
 # not use the panel, so they never go through Forge's own LoRA patching.
 # Ported from ComfyUI-Anima-Ref-Adapter (ElectronGirl, Apache-2.0), __init__.py, class _Adapter, and from
 # Anima-Role-Ref-KV (AnticPan, Apache-2.0), anima_role_ref_kv/lora.py, LoRALinear (the delta in the adapter's dtype).
+# Both methods were trained on Anima base v1.0 (28 blocks); on a deeper Anima (40 or 52 blocks, the 2.9B models) each
+# block borrows the weights of the trained block Forge Neo's BLOCK_MAPPINGS gives it, as Forge does for Anima LoRAs.
 
 import json
 import os
+import re
 import struct
 
 import torch
@@ -16,6 +19,7 @@ REF_ADAPTER_KEY = "anima_ref_adapter"  # ElectronGirl's metadata: rank, targets,
 ROLE_REF_KV_KEY = "charref_version"  # AnticPan's metadata (with requires_reference_runtime)
 PREFIX = "diffusion_model."
 HOOK_ATTR = "_anima_ref_hook"  # on each hooked module: the hook handle
+BLOCK = re.compile(r"^blocks\.(\d+)\.(.+)$")
 
 _active = {"adapter": None}  # the adapter whose LoRA the hooks apply right now (None: hooks do nothing)
 _cache: dict[tuple, "Adapter"] = {}
@@ -62,6 +66,10 @@ class Adapter:
         if not self.weights:
             raise ValueError(f"{name} has no lora_down/lora_up weights")
         self.strength = 1.0
+        indices = [int(m.group(1)) for m in map(BLOCK.match, self.weights) if m]
+        self.blocks = max(indices) + 1 if indices else 0  # blocks of the model it was trained on
+        self.aliases: dict[int, dict[str, str]] = {}  # model blocks -> {module name: trained module name}
+        self.announced: set[int] = set()  # model sizes the console has been told about
 
     @classmethod
     def load(cls, path: str, compute_dtype: torch.dtype | None = None) -> "Adapter":
@@ -78,23 +86,47 @@ class Adapter:
         size = torch.finfo(self.compute_dtype or dtype).bits // 8
         return sum((entry[0].numel() + entry[1].numel()) * size for entry in self.weights.values())
 
-    def install(self, diffusion_model: torch.nn.Module) -> int:
+    def targets(self, blocks: int, block_mappings: dict | None = None) -> dict[str, str]:
+        """{module name in a model of `blocks` blocks: trained module name whose weights it uses}.
+        Raises ValueError when the trained blocks cannot be spread over this model."""
+        if blocks == self.blocks or not self.blocks:
+            return {name: name for name in self.weights}
+        if blocks not in self.aliases:
+            mapping = (block_mappings or {}).get((self.blocks, blocks))
+            if mapping is None or len(mapping) != blocks:
+                raise ValueError(f"{self.name} was trained for an Anima of {self.blocks} blocks and this model has {blocks}, with no block mapping between them")
+            aliases = {name: name for name in self.weights if not BLOCK.match(name)}
+            for name in self.weights:
+                m = BLOCK.match(name)
+                if m:
+                    for target, source in enumerate(mapping):
+                        if source == int(m.group(1)):
+                            aliases[f"blocks.{target}.{m.group(2)}"] = name
+            self.aliases[blocks] = aliases
+        return self.aliases[blocks]
+
+    def entry(self, name: str, blocks: int) -> list | None:
+        aliases = self.aliases.get(blocks)
+        return self.weights.get(aliases.get(name) if aliases is not None and blocks != self.blocks else name)
+
+    def install(self, diffusion_model: torch.nn.Module, block_mappings: dict | None = None) -> int:
         """Hooks every module this adapter targets; a module hooked before (by any adapter) is left as it is."""
+        blocks = len(getattr(diffusion_model, "blocks", ()))
         installed = 0
-        for name in self.weights:
+        for name in self.targets(blocks, block_mappings):
             module = diffusion_model.get_submodule(name)
             if getattr(module, HOOK_ATTR, None) is None:
-                setattr(module, HOOK_ATTR, module.register_forward_hook(_make_hook(name)))
+                setattr(module, HOOK_ATTR, module.register_forward_hook(_make_hook(name, blocks)))
                 installed += 1
         return installed
 
 
-def _make_hook(name: str):
+def _make_hook(name: str, blocks: int):
     def hook(module, inputs, output):
         adapter = _active["adapter"]
         if adapter is None:
             return output
-        entry = adapter.weights.get(name)
+        entry = adapter.entry(name, blocks)
         if entry is None:
             return output
         x = inputs[0]

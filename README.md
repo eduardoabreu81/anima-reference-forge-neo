@@ -41,7 +41,7 @@ Two community methods in one panel, each with its authors' own weights and math:
 
 - **Your character in any scene** - an **Anima Reference** panel in txt2img and img2img: drop a picture, write the scene, generate
 - **Two methods** - ElectronGirl's **Ref Adapter**, with its own reference guidance, and AnticPan's **Role Ref KV**
-- **Turbo checkpoints and Hires. fix** - 8 steps at CFG 1 work, and the second pass reads the reference at its own size
+- **Turbo checkpoints, Anima 2.9B and Hires. fix** - 8 steps at CFG 1 work, the 2.9B models too, and the second pass reads the reference at its own size
 
 ---
 
@@ -55,7 +55,7 @@ Each row is one scene, with the same seed in every column. **Ref Adapter** and *
 
 In these runs both methods kept the face, hair, eyes and colors in every scene. **Ref Adapter** held on to the whole outfit - the hood stays up and the raincoat stays on even at the beach - while **Role Ref KV** let the scene change the clothes more. Small accessories such as the glasses come and go with both.
 
-Every picture: an Anima turbo checkpoint (`anima_aesthetic_turbo_v11`), Euler, Simple, 8 steps, CFG 1, 768x1024, adapter strength 1, prompt `masterpiece, best quality, score_7, newest, highres, absurdres, safe, <gender>, solo, <scene>`, on an RTX 2070. Seeds were not cherry-picked. Both references are original characters made with the same checkpoint.
+Every picture: an Anima turbo checkpoint (`anima_aesthetic_turbo_v11`), Euler, Simple, 8 steps, CFG 1, 768x1024, adapter strength 1, prompt `masterpiece, best quality, score_7, newest, highres, absurdres, safe, <gender>, solo, <scene>`. Seeds were not cherry-picked. Both references are original characters made with the same checkpoint.
 
 ---
 
@@ -75,9 +75,10 @@ Every picture: an Anima turbo checkpoint (`anima_aesthetic_turbo_v11`), Euler, S
 - Your usual CFG: the prompt pass sees the reference, the negative pass does not
 - A larger LoRA (529 MB), run in FP32 as in the authors' code
 
-### ⚡ Turbo Checkpoints
+### ⚡ Turbo Checkpoints and Anima 2.9B
 
-- Both methods work with Anima turbo checkpoints at their usual **8 steps and CFG 1** - about 35 s per 768x1024 picture on an RTX 2070, the same as without a reference
+- Both methods work with Anima turbo checkpoints at their usual **8 steps and CFG 1**
+- Both work with the deeper **Anima 2.9B** models too, turbo included: the methods were trained on the 28 blocks of Anima base v1.0, and on a model with more blocks each extra block borrows the weights of a trained one, the same way Forge Neo loads ordinary Anima LoRAs on those models. The console says so when it happens
 - **Hires. fix** works with both: the second pass reads the reference again at its own size
 
 ### 🎛️ Familiar Forge Controls
@@ -151,8 +152,9 @@ With a turbo checkpoint, keep its own steps and CFG (8 and 1 in the examples abo
 
 - Use a clear picture of one character, unobstructed - a full-body picture on a plain background works best
 - Describe only the scene: the pose, the place, the framing, the expression. Appearance tags fight the reference
+- In img2img, the picture you start from competes with the reference: around 0.8 Denoising strength the face, hair and eyes follow the reference while the outfit and framing still come mostly from the picture. To put the whole character in a scene, use txt2img
+- With Ref Adapter on Anima base v1.0, reference guidance 4.5 brings the most of the outfit; at 1 the character is already there, with fewer details
 - At CFG 1, Forge Neo skips the negative prompt, and Ref Adapter's reference guidance is built from it: the extension runs it as 1, says so in the console and writes `Anima Ref guidance: 1.0` in the infotext. For more of the reference on a turbo checkpoint, raise CFG a little (1.5 worked) and reference guidance with it
-- Ref Adapter at reference guidance above 1 runs three model passes per step instead of two; at 1 it costs about the same as a plain generation
 - Role Ref KV's weights take 529 MB of video memory on top of the model while it runs
 
 ---
@@ -163,13 +165,13 @@ From the authors:
 
 - **Ref Adapter** (pilot release: 300 training characters): identity transfers much better than style; small patterns, scars, earrings and unusual skin tones are often lost; large garments can drift in color; the reference character occasionally reappears as an object in the scene
 - **Role Ref KV**: details may drift with difficult references or strong prompt changes; other base models, quantized weights and additional LoRAs were not validated; NSFW content was filtered out of its training data
-- Both were trained on Anima base v1.0 and inherit its biases
+- Both were trained on Anima base v1.0 and inherit its biases; on Anima 2.9B the weights are spread over the extra blocks, which their authors did not train or test
 
 In Forge Neo:
 
 - Forge's own **Anima reference** setting (for the edit LoRA) is ignored while the panel runs
 - Batches use the same reference for every picture
-- Role Ref KV was released for BF16 or FP32; on FP16 cards such as the RTX 20 series small differences from the authors' pictures are expected
+- Role Ref KV was released for BF16 or FP32; where Anima runs in FP16 small differences from the authors' pictures are expected
 
 ---
 

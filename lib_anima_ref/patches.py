@@ -78,7 +78,7 @@ class RefAdapterReference:
         self.latents, self.adapter, self.strength, self.offset_h = latents, adapter, strength, offset_h
 
     def run(self, dm, x, timesteps, context, transformer_options):
-        self.adapter.install(dm)  # no-op once hooked; covers a model reloaded since the last generation
+        self.adapter.install(dm, block_mappings())  # no-op once hooked; covers a model reloaded since then
         with active(self.adapter, self.strength):
             return ref_forward(dm, x, timesteps, context, self.latents, self.offset_h, transformer_options)
 
@@ -94,7 +94,7 @@ class RoleRefKVReference:
         self.caches: dict[tuple, list] = {}  # padded target latent size -> per-block (k, v)
 
     def run(self, dm, x, timesteps, context, transformer_options):
-        self.adapter.install(dm)
+        self.adapter.install(dm, block_mappings())
         options = transformer_options or {}
         with active(self.adapter, self.strength), kv.qk_eps(dm):
             size = tuple(pad_to_patch_size(x[:1, :1], (dm.patch_temporal, dm.patch_spatial, dm.patch_spatial)).shape[-2:])
@@ -135,6 +135,29 @@ def apply():
 
         SelfCrossAttention._anima_ref_original = original_attention
         SelfCrossAttention.forward = attention_forward
+
+
+def block_mappings() -> dict:
+    """Forge Neo's Anima block mappings ((trained blocks, model blocks) -> source block per model block)."""
+    try:
+        import backend.nn.anima
+    except ImportError:  # only outside Forge (tests)
+        return {}
+    return getattr(backend.nn.anima, "BLOCK_MAPPINGS", {})
+
+
+def prepare(sd_model, adapter: Adapter) -> str | None:
+    """Hooks the adapter into the loaded Anima; returns why it cannot run there, or None."""
+    dm = sd_model.forge_objects.unet.model.diffusion_model
+    blocks = len(dm.blocks)
+    try:
+        adapter.install(dm, block_mappings())
+    except ValueError as e:
+        return str(e)
+    if adapter.blocks and blocks != adapter.blocks and blocks not in adapter.announced:
+        adapter.announced.add(blocks)
+        print(f"{TAG} {adapter.name} was trained for {adapter.blocks} blocks; spreading it over this model's {blocks} blocks, as Forge Neo does for Anima LoRAs")
+    return None
 
 
 def is_anima(sd_model) -> bool:

@@ -90,6 +90,32 @@ class AdapterTest(unittest.TestCase):
         self.assertEqual(self.adapter.nbytes(torch.float16) * 2, adapter.nbytes(torch.float16))
 
 
+class BlockMappingTest(unittest.TestCase):
+    """A 2-block adapter on a 3-block model (as 28 blocks on a 40-block 2.9B), with Forge's mapping."""
+
+    def setUp(self):
+        torch.manual_seed(0)
+        self.dm = ToyAnima(num_blocks=3)
+        self.tensors = lora_tensors(ToyAnima(num_blocks=2), targets=("blocks.0.self_attn.q_proj", "blocks.1.self_attn.q_proj"))
+        self.adapter = Adapter(self.tensors)
+
+    def test_each_block_uses_its_mapped_trained_block(self):
+        self.assertEqual(self.adapter.blocks, 2)
+        self.assertEqual(self.adapter.install(self.dm, {(2, 3): [0, 0, 1]}), 3)
+        x = torch.randn(2, 24)
+        with active(self.adapter, 1.0):
+            for target, source in enumerate([0, 0, 1]):
+                module = self.dm.get_submodule(f"blocks.{target}.self_attn.q_proj")
+                down = self.tensors[f"diffusion_model.blocks.{source}.self_attn.q_proj.lora_down.weight"]
+                up = self.tensors[f"diffusion_model.blocks.{source}.self_attn.q_proj.lora_up.weight"]
+                torch.testing.assert_close(module(x), x @ module.weight.T + (x @ down.T @ up.T) * (4.0 / RANK))
+
+    def test_no_mapping_is_a_clear_error(self):
+        with self.assertRaisesRegex(ValueError, "2 blocks and this model has 3"):
+            self.adapter.install(self.dm, {})
+        self.assertIsNone(getattr(self.dm.blocks[0].self_attn.q_proj, lib_adapter.HOOK_ATTR, None))
+
+
 class MetadataTest(unittest.TestCase):
     def test_each_method_finds_its_files(self):
         meta = {"rank": 32, "alpha": 32, "ref_offset_h": 1.0}

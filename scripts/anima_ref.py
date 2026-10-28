@@ -179,6 +179,10 @@ class AnimaRefScript(scripts.Script):
     def process_before_every_sampling(self, p, *args, **kwargs):
         if not self._active or not patches.is_anima(p.sd_model):
             return
+        problem = patches.prepare(p.sd_model, self._adapter)
+        if problem:
+            print(f"{TAG} {problem}; the reference is skipped")
+            return
         unet = p.sd_model.forge_objects.unet
         strength, ref_guidance, correction, rescale_phi, offset_h, fill = self._settings
         if self._method == ROLE_REF_KV:
