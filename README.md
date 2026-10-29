@@ -39,7 +39,7 @@ Two community methods in one panel, each with its authors' own weights and math:
 
 ### v0.1.0 - First Release
 
-- **Your character in any scene** - an **Anima Reference** panel in txt2img and img2img: drop a picture, write the scene, generate
+- **Your character in any scene** - an **Anima Reference** panel in txt2img and img2img: put the picture in **ImageStitch Integrated**, write the scene, generate
 - **Two methods** - ElectronGirl's **Ref Adapter**, with its own reference guidance, and AnticPan's **Role Ref KV**
 - **Turbo checkpoints, Anima 2.9B and Hires. fix** - 8 steps at CFG 1 work, the 2.9B models too, and the second pass reads the reference at its own size
 
@@ -84,6 +84,7 @@ Every picture: an Anima turbo checkpoint (`anima_aesthetic_turbo_v11`), Euler, S
 ### 🎛️ Familiar Forge Controls
 
 - Runs inside txt2img and img2img - no separate tab, no node graph
+- The reference picture goes in **ImageStitch Integrated**, Forge Neo's own place for reference pictures
 - Your checkpoint, LoRAs, sampler, CFG and Hires. fix as usual; post-CFG extensions still run after it
 - Finds each method's weights in your LoRA folder by itself, from the files' own metadata
 - Settings go into the infotext and come back with **PNG Info → Send to txt2img**
@@ -120,9 +121,10 @@ Every picture: an Anima turbo checkpoint (`anima_aesthetic_turbo_v11`), Euler, S
 ## 🖱️ How to Use
 
 1. Pick an Anima checkpoint
-2. Open **Anima Reference**, tick it, choose the **Method** and drop the reference picture in
-3. Write the scene: quality tags, gender, `solo`, then the pose, place and framing - for example `masterpiece, best quality, score_7, newest, highres, absurdres, safe, 1girl, solo, upper body, sitting, eating, cake, cafe, indoors`
-4. Generate
+2. Open **ImageStitch Integrated**, tick it and add the reference picture to its gallery (**Image to Upload** → **Append Pasted Image**)
+3. Open **Anima Reference**, tick it and choose the **Method**
+4. Write the scene: quality tags, gender, `solo`, then the pose, place and framing - for example `masterpiece, best quality, score_7, newest, highres, absurdres, safe, 1girl, solo, upper body, sitting, eating, cake, cafe, indoors`
+5. Generate
 
 | Control | What it does |
 | :--- | :--- |
@@ -150,6 +152,8 @@ With a turbo checkpoint, keep its own steps and CFG (8 and 1 in the examples abo
 
 ## 💡 Tips
 
+- Leave **Settings → [Anima] Enable Reference** off: it is for the Edit LoRA, and with it on ImageStitch also gives the picture to Forge Neo's own reference
+- ImageStitch can hold several pictures; the panel uses the first one
 - Use a clear picture of one character, unobstructed - a full-body picture on a plain background works best
 - Describe only the scene: the pose, the place, the framing, the expression. Appearance tags fight the reference
 - In img2img, the picture you start from competes with the reference: around 0.8 Denoising strength the face, hair and eyes follow the reference while the outfit and framing still come mostly from the picture. To put the whole character in a scene, use txt2img
@@ -179,14 +183,14 @@ In Forge Neo:
 
 ```python
 "alwayson_scripts": {
+    "imagestitch integrated": {"args": [True, ["<reference picture as base64>"], 1024]},
     "anima reference": {
-        "args": [True, "Ref Adapter", "<reference image as base64>", "anima_ref_adapter_pilot_r32.safetensors",
-                 1.0, 4.5, "apg", 0.5, 1.0, 255]
+        "args": [True, "Ref Adapter", "anima_ref_adapter_pilot_r32.safetensors", 1.0, 4.5, "apg", 0.5, 1.0, 255]
     }
 }
 ```
 
-Arguments, in order: enable, method (`Ref Adapter` or `Role Ref KV`), image, weights (as listed in the panel, with its subfolder), strength, reference guidance, correction, rescale phi, RoPE offset, letterbox fill. The last five only apply to Ref Adapter.
+The picture goes to ImageStitch Integrated (enable, gallery, maximum side length). Anima Reference's arguments, in order: enable, method (`Ref Adapter` or `Role Ref KV`), weights (as listed in the panel, with its subfolder), strength, reference guidance, correction, rescale phi, RoPE offset, letterbox fill. The last five only apply to Ref Adapter.
 
 ---
 

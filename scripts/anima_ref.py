@@ -3,6 +3,7 @@
 # nothing until a generation asks for a reference); any failure leaves Forge Neo unchanged and says so in the
 # console. The panel is an accordion under the generation settings, in txt2img and img2img, with two methods:
 # Ref Adapter (ElectronGirl: reference as a second frame) and Role Ref KV (AnticPan: reference key/value cache).
+# The reference picture is the first one in ImageStitch Integrated's gallery.
 
 import sys
 import traceback
@@ -31,7 +32,7 @@ except Exception:
     print(f"{TAG} failed to enable, Forge Neo is unchanged:")
     traceback.print_exc()
 
-from lib_anima_ref import __version__, files, kv
+from lib_anima_ref import __version__, files, kv, stitch
 from lib_anima_ref.files import METHODS, REF_ADAPTER, ROLE_REF_KV
 from lib_anima_ref.guidance import CORRECTIONS
 from lib_anima_ref.letterbox import letterbox, to_pixels
@@ -53,25 +54,6 @@ def adapter_update(method: str):
     return gr.update(choices=choices, value=next(iter(choices), None))
 
 
-def as_image(value):
-    """The reference as a PIL image: from the panel, or from the API (base64 string, or a {"image": ...} dict)."""
-    from PIL import Image
-
-    if value is None or value == "":
-        return None
-    if isinstance(value, dict):
-        value = value.get("image") or value.get("composite") or value.get("background")
-    if isinstance(value, str):
-        from modules.api.api import decode_base64_to_image
-
-        value = decode_base64_to_image(value)
-    if not isinstance(value, Image.Image):
-        import numpy as np
-
-        value = Image.fromarray(np.asarray(value).astype("uint8"))
-    return value.convert("RGB")
-
-
 class AnimaRefScript(scripts.Script):
     def __init__(self):
         self._latents: dict[tuple, object] = {}
@@ -89,8 +71,8 @@ class AnimaRefScript(scripts.Script):
         default = next((m for m in METHODS if _adapters.get(m)), REF_ADAPTER)
         choices = list(_adapters.get(default, {}))
         with InputAccordion(False, label=f"{self.title()} v{__version__}", elem_id=f"anima_ref_{tab}") as enable:
+            gr.HTML(f"The reference picture is the first one in <b>{stitch.TITLE}</b>: turn it on and put the picture in its gallery")
             with gr.Row():
-                image = gr.Image(type="pil", label="Reference image", height=256, elem_id=f"anima_ref_image_{tab}")
                 with gr.Column():
                     method = gr.Radio(list(METHODS), value=default, label="Method", info="Ref Adapter: ElectronGirl's adapter, with reference guidance. Role Ref KV: AnticPan's, plain CFG", elem_id=f"anima_ref_method_{tab}")
                     with gr.Row():
@@ -132,21 +114,26 @@ class AnimaRefScript(scripts.Script):
             (offset_h, "Anima Ref offset"),
             (fill, "Anima Ref fill"),
         ]
-        args = [enable, method, image, adapter, strength, ref_guidance, correction, rescale_phi, offset_h, fill]
+        args = [enable, method, adapter, strength, ref_guidance, correction, rescale_phi, offset_h, fill]
         for component in args:
             component.do_not_save_to_config = True
         return args
 
-    def process(self, p, enable, method, image, adapter, strength, ref_guidance, correction, rescale_phi, offset_h, fill, *args):
+    def process(self, p, enable, method, adapter, strength, ref_guidance, correction, rescale_phi, offset_h, fill, *args):
         self._active = False
         self._latents = {}
         if not enable:
             return
         method = method if method in METHODS else REF_ADAPTER
-        self._image = as_image(image)
-        if self._image is None:
-            print(f"{TAG} no reference image, the reference is skipped")
+        from modules.api.api import decode_base64_to_image
+
+        image, count, problem = stitch.reference(getattr(p.scripts, "alwayson_scripts", None), p.script_args, decode_base64_to_image)
+        if image is None:
+            print(f"{TAG} {problem}; the reference is skipped")
             return
+        if count > 1:
+            print(f"{TAG} {stitch.TITLE} has {count} pictures; {method} uses the first one")
+        self._image = image.convert("RGB")
         if not patches.is_anima(p.sd_model):
             print(f"{TAG} the loaded checkpoint is not Anima, the reference is skipped")
             return
@@ -157,7 +144,7 @@ class AnimaRefScript(scripts.Script):
             print(f"{TAG} {method} weights {adapter!r} not found in the LoRA folders, the reference is skipped")
             return
         if getattr(shared.opts, "anima_do_reference", False):
-            print(f"{TAG} Forge's own Anima reference setting is on; its reference frames are ignored while {method} runs")
+            print(f"{TAG} [Anima] Enable Reference is on: {stitch.TITLE} also gives the picture to Forge's own reference (made for the Edit LoRA); turn it off for {method}")
         # Role Ref KV's LoRA runs in fp32, as its runtime does (LoRALinear)
         self._adapter = patches.Adapter.load(path, torch.float32 if method == ROLE_REF_KV else None)
         self._method = method
