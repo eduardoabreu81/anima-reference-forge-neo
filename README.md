@@ -4,7 +4,7 @@
 
 [![Forge Neo](https://img.shields.io/badge/Forge-Neo-blue)](https://github.com/Haoming02/sd-webui-forge-classic/tree/neo)
 [![Gradio](https://img.shields.io/badge/Gradio-4.40.0-orange)](https://gradio.app/)
-[![Version](https://img.shields.io/badge/Version-0.1.0-brightgreen)](https://github.com/eduardoabreu81/anima-reference-forge-neo)
+[![Version](https://img.shields.io/badge/Version-0.2.0-brightgreen)](https://github.com/eduardoabreu81/anima-reference-forge-neo)
 [![License](https://img.shields.io/badge/License-AGPL--3.0-green.svg)](LICENSE)
 
 > **Extension for [Stable Diffusion WebUI Forge - Neo](https://github.com/Haoming02/sd-webui-forge-classic/tree/neo)**
@@ -13,7 +13,7 @@
 
 Give **[Anima](https://huggingface.co/circlestone-labs/Anima)** one picture of a character and a prompt that only describes the scene: **who** is drawn - hair, eyes, outfit, accessories - comes from the picture, while **pose, place and framing** follow the prompt. No character name, artist tag or appearance tags needed, so it works for your original characters too.
 
-Two community methods in one panel, each with its authors' own weights and math: ElectronGirl's **[Ref Adapter](https://github.com/ElectronGirl/ComfyUI-Anima-Ref-Adapter)** and AnticPan's **[Role Ref KV](https://huggingface.co/AnticPan/Anima-Role-Ref-KV)**.
+Two community methods, each with its authors' own weights and math, switched on by their LoRA tag in the prompt: ElectronGirl's **[Ref Adapter](https://github.com/ElectronGirl/ComfyUI-Anima-Ref-Adapter)** and AnticPan's **[Role Ref KV](https://huggingface.co/AnticPan/Anima-Role-Ref-KV)**.
 
 > [!Important]
 > This extension requires an up-to-date **Forge Neo** (the `neo` branch). On an older version it stays disabled and tells you so in the console - Forge Neo itself keeps working as usual.
@@ -37,9 +37,14 @@ Two community methods in one panel, each with its authors' own weights and math:
 
 ## 🆕 What's New
 
+### v0.2.0 - Switched On by the LoRA Tag
+
+- **No panel** - add the method's LoRA to the prompt and the reference picture to **ImageStitch Integrated**, as Forge Neo's Anima Edit works; the tag's weight is the strength and the file tells which method to run
+- **Settings → Stable Diffusion → Anima Reference** - Ref Adapter's reference guidance and correction, saved once instead of set every time; they still go into the infotext and come back with PNG Info
+
 ### v0.1.0 - First Release
 
-- **Your character in any scene** - an **Anima Reference** panel in txt2img and img2img: put the picture in **ImageStitch Integrated**, write the scene, generate
+- **Your character in any scene** - put the picture in **ImageStitch Integrated**, write the scene, generate
 - **Two methods** - ElectronGirl's **Ref Adapter**, with its own reference guidance, and AnticPan's **Role Ref KV**
 - **Turbo checkpoints, Anima 2.9B and Hires. fix** - 8 steps at CFG 1 work, the 2.9B models too, and the second pass reads the reference at its own size
 
@@ -66,7 +71,7 @@ Every picture: an Anima turbo checkpoint (`anima_aesthetic_turbo_v11`), Euler, S
 - By **[ElectronGirl](https://github.com/ElectronGirl/ComfyUI-Anima-Ref-Adapter)** - see the authors' **[technical report](https://github.com/ElectronGirl/ComfyUI-Anima-Ref-Adapter/blob/main/docs/report.md)** for the method, data and failure modes
 - The reference is fitted into the picture's size and becomes a **second picture next to the one being drawn**, clean at every step, placed one picture height away so the model reads it without copying its pose
 - A small LoRA (92 MB), on only while the reference is there, teaches the model to read it
-- **Reference guidance** on top of your CFG Scale: higher values bring more of the character's details and style, with **APG** or **CFG rescale** to keep colors in check
+- **Reference guidance** (in Settings) on top of your CFG Scale: higher values bring more of the character's details and style, with **APG** or **CFG rescale** to keep colors in check
 
 ### 🔑 Role Ref KV
 
@@ -83,17 +88,17 @@ Every picture: an Anima turbo checkpoint (`anima_aesthetic_turbo_v11`), Euler, S
 
 ### 🎛️ Familiar Forge Controls
 
-- Runs inside txt2img and img2img - no separate tab, no node graph
+- No panel and no separate tab: the method's **LoRA tag** in the prompt switches it on, like any LoRA - from the LoRA tab or typed
 - The reference picture goes in **ImageStitch Integrated**, Forge Neo's own place for reference pictures
-- Your checkpoint, LoRAs, sampler, CFG and Hires. fix as usual; post-CFG extensions still run after it
-- Finds each method's weights in your LoRA folder by itself, from the files' own metadata
-- Settings go into the infotext and come back with **PNG Info → Send to txt2img**
+- Your checkpoint, other LoRAs, sampler, CFG and Hires. fix as usual; post-CFG extensions still run after it
+- Knows each method's file by its own metadata, wherever it is in your LoRA folders
+- The tag and the settings go into the infotext and come back with **PNG Info → Send to txt2img**
 
 ### 🛡️ Safe by Design
 
 - Changes no Forge Neo file - remove the extension and everything is as it was
 - Checks your Forge Neo at startup and stays disabled if something it needs is missing
-- The methods' LoRAs are on only while the panel is in use - they never leak into other generations
+- The methods' tags never load as ordinary LoRAs: their weights run only inside the reference passes, and never in other generations
 - Other models are not affected
 
 ---
@@ -114,7 +119,7 @@ Every picture: an Anima turbo checkpoint (`anima_aesthetic_turbo_v11`), Euler, S
 6. You also need an Anima checkpoint, the Qwen3-0.6B text encoder and the Qwen-Image VAE from [circlestone-labs/Anima](https://huggingface.co/circlestone-labs/Anima), set up as for any Anima generation
 
 > [!Note]
-> Do **not** add these files to the prompt as `<lora:...>` - that would apply them without the reference. The panel loads them on its own.
+> The extension takes these two files out of Forge Neo's own LoRA loading and runs them itself. Without the extension, their tags would load as ordinary LoRAs and do nothing useful.
 
 ---
 
@@ -122,18 +127,24 @@ Every picture: an Anima turbo checkpoint (`anima_aesthetic_turbo_v11`), Euler, S
 
 1. Pick an Anima checkpoint
 2. Open **ImageStitch Integrated**, tick it and add the reference picture to its gallery (**Image to Upload** → **Append Pasted Image**)
-3. Open **Anima Reference**, tick it and choose the **Method**
-4. Write the scene: quality tags, gender, `solo`, then the pose, place and framing - for example `masterpiece, best quality, score_7, newest, highres, absurdres, safe, 1girl, solo, upper body, sitting, eating, cake, cafe, indoors`
-5. Generate
+3. Write the scene and add the method's LoRA, from the LoRA tab or typed - for example `masterpiece, best quality, score_7, newest, highres, absurdres, safe, 1girl, solo, upper body, sitting, eating, cake, cafe, indoors <lora:anima_ref_adapter_pilot_r32:1>`
+4. Generate
 
-| Control | What it does |
+| Tag | Method |
 | :--- | :--- |
-| **Method** | Ref Adapter or Role Ref KV; the weights list and the controls below follow it |
-| **Adapter weights** | the method's file, found in the LoRA folders (🔄 looks again) |
-| **Adapter strength** | the method's LoRA weight; 1 is what it was trained at |
-| **Reference guidance** | Ref Adapter only. 1 = the reference in both CFG passes (faster); higher = more of the character's details and style, and more saturation. Needs CFG above 1 |
-| **Correction** | Ref Adapter only. `apg` keeps colors under control at high reference guidance; `rescale` (with **Rescale phi**) is the alternative |
-| **Advanced** | Ref Adapter only. Where the reference sits next to the picture (keep 1.0, the training value) and the grey of the letterbox around it (255, white, as in training) |
+| `<lora:anima_ref_adapter_pilot_r32:1>` | Ref Adapter |
+| `<lora:anima-role-ref-kv-v1.0:1>` | Role Ref KV |
+
+The tag's weight is the method's strength; 1 is what it was trained at. Other LoRAs in the prompt work as usual.
+
+**Settings → Stable Diffusion → Anima Reference** (Ref Adapter only):
+
+| Setting | What it does |
+| :--- | :--- |
+| **Reference guidance** | 1 = the reference in both CFG passes (faster); higher = more of the character's details and style, and more saturation. Needs CFG above 1 |
+| **Correction** | `apg` keeps colors under control at high reference guidance; `rescale` (with **Rescale phi**) is the alternative |
+| **Reference RoPE offset** | where the reference sits next to the picture; keep 1.0, the training value |
+| **Letterbox fill** | the grey around the reference when its shape differs from the picture; 255 (white) as in training |
 
 ---
 
@@ -153,7 +164,8 @@ With a turbo checkpoint, keep its own steps and CFG (8 and 1 in the examples abo
 ## 💡 Tips
 
 - Leave **Settings → [Anima] Enable Reference** off: it is for the Edit LoRA, and with it on ImageStitch also gives the picture to Forge Neo's own reference
-- ImageStitch can hold several pictures; the panel uses the first one
+- ImageStitch can hold several pictures; the extension uses the first one
+- One reference tag per prompt: with two, the first one is used
 - Use a clear picture of one character, unobstructed - a full-body picture on a plain background works best
 - Describe only the scene: the pose, the place, the framing, the expression. Appearance tags fight the reference
 - In img2img, the picture you start from competes with the reference: around 0.8 Denoising strength the face, hair and eyes follow the reference while the outfit and framing still come mostly from the picture. To put the whole character in a scene, use txt2img
@@ -173,7 +185,7 @@ From the authors:
 
 In Forge Neo:
 
-- Forge's own **Anima reference** setting (for the edit LoRA) is ignored while the panel runs
+- Forge's own **[Anima] Enable Reference** setting (for the Edit LoRA) should stay off while a reference tag is in the prompt
 - Batches use the same reference for every picture
 - Role Ref KV was released for BF16 or FP32; where Anima runs in FP16 small differences from the authors' pictures are expected
 
@@ -182,15 +194,16 @@ In Forge Neo:
 ## 🧭 API
 
 ```python
-"alwayson_scripts": {
-    "imagestitch integrated": {"args": [True, ["<reference picture as base64>"], 1024]},
-    "anima reference": {
-        "args": [True, "Ref Adapter", "anima_ref_adapter_pilot_r32.safetensors", 1.0, 4.5, "apg", 0.5, 1.0, 255]
-    }
+{
+    "prompt": "... <lora:anima_ref_adapter_pilot_r32:1>",
+    "alwayson_scripts": {
+        "imagestitch integrated": {"args": [True, ["<reference picture as base64>"], 1024]}
+    },
+    "override_settings": {"anima_ref_guidance": 4.5, "anima_ref_correction": "apg"}
 }
 ```
 
-The picture goes to ImageStitch Integrated (enable, gallery, maximum side length). Anima Reference's arguments, in order: enable, method (`Ref Adapter` or `Role Ref KV`), weights (as listed in the panel, with its subfolder), strength, reference guidance, correction, rescale phi, RoPE offset, letterbox fill. The last five only apply to Ref Adapter.
+The method's tag goes in the prompt and the picture in ImageStitch Integrated (enable, gallery, maximum side length). The settings are ordinary options: `anima_ref_guidance`, `anima_ref_correction`, `anima_ref_rescale_phi`, `anima_ref_offset`, `anima_ref_fill`.
 
 ---
 
