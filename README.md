@@ -1,3 +1,7 @@
+<p align="center">
+  <img src=".github/banner.jpg" alt="Anima Reference for Forge Neo banner"/>
+</p>
+
 # 🧬 Anima Reference for Forge Neo
 
 <div align="center">
